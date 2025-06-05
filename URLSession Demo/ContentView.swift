@@ -10,14 +10,14 @@ import SwiftData
 
 struct ContentView: View {
     @StateObject private var api = APIService()
-    
+
     // Sheet & navigation state
     @State private var showingEditor = false
     @State private var editTarget: Recipe? = nil
-    
+
     @State private var showDetail = false
     @State private var selectedRecipe: Recipe? = nil
-    
+
     @State private var showMeal = false
 
     // Search & sort state
@@ -44,8 +44,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // ──────────────────────────────────────────────────────────────
-                // RECIPE LIST
+                // ── RECIPE LIST ──────────────────────────────────────────────
                 recipesList
                     .listStyle(.plain)
                     .refreshable {
@@ -60,15 +59,13 @@ struct ContentView: View {
                     }
             }
             .navigationTitle("Recipes (\(api.recipes.count))")
-            // ──────────────────────────────────────────────────────────────
-            // SEARCH BAR: moved into the nav bar via `.searchable`
+            // ── SEARCH BAR ────────────────────────────────────────────────
             .searchable(
                 text: $searchText,
                 placement: .navigationBarDrawer(displayMode: .always),
                 prompt: "Search recipes..."
             )
-            // ──────────────────────────────────────────────────────────────
-            // TOOLBAR: split between Leading (Random + Import) and Trailing (Add + Sort)
+            // ── TOOLBAR ───────────────────────────────────────────────────
             .toolbar {
                 // Leading side: Random + Import
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -77,7 +74,7 @@ struct ContentView: View {
                         importSamplesButton
                     }
                 }
-                
+
                 // Trailing side: Add (+) and Sort (↕︎)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     addRecipeButton
@@ -86,8 +83,7 @@ struct ContentView: View {
                     sortToggleButton
                 }
             }
-            // ──────────────────────────────────────────────────────────────
-            // SHEET #1: Edit / Create Recipe
+            // ── SHEET #1: Edit / Create Recipe ────────────────────────────
             .sheet(isPresented: $showingEditor) {
                 EditorView(recipe: editTarget) { result in
                     switch result {
@@ -102,32 +98,26 @@ struct ContentView: View {
                     case .cancel:
                         break
                     }
-                    // Reset the sheet‐state after dismiss
                     showingEditor = false
                 }
             }
-            // ──────────────────────────────────────────────────────────────
-            // SHEET #2: Random Meal Detail
+            // ── SHEET #2: Random Meal Detail ──────────────────────────────
             .sheet(isPresented: $showMeal) {
                 MealDetailView(meal: api.randomMeal)
                     .onDisappear {
-                        // As soon as the meal sheet is dismissed, reset randomMeal
                         api.randomMeal = nil
                         showMeal = false
                     }
             }
-            // ──────────────────────────────────────────────────────────────
-            // NAVIGATION TO DETAIL
+            // ── NAVIGATION TO DETAIL ─────────────────────────────────────
             .navigationDestination(isPresented: $showDetail) {
                 DetailView(recipe: selectedRecipe)
             }
-            // ──────────────────────────────────────────────────────────────
-            // ON APPEAR → fetch all recipes
+            // ── ON APPEAR: fetch all recipes (loads from local persistence) ─
             .task {
                 await api.fetchAll()
             }
-            // ──────────────────────────────────────────────────────────────
-            // ERROR ALERT
+            // ── ERROR ALERT ───────────────────────────────────────────────
             .alert("Error", isPresented: showErrorAlert) {
                 Button("OK", role: .cancel) {
                     api.errorMessage = nil
@@ -137,10 +127,10 @@ struct ContentView: View {
             }
         }
     }
-    
-    // MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-    // Local subviews & helpers to keep the body simple
-    
+
+    // MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+    // Helpers & subviews (to keep `body` concise)
+
     /// Binding that shows true when `api.errorMessage` is non‐nil
     private var showErrorAlert: Binding<Bool> {
         Binding<Bool>(
@@ -240,7 +230,7 @@ struct ContentView: View {
 
 
 // MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-// Detail View (no changes needed, included for completeness)
+// Detail View (no changes needed)
 
 fileprivate struct DetailView: View {
     let recipe: Recipe?
