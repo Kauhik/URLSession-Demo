@@ -11,62 +11,147 @@ import SwiftUI
 struct MealDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let meal: Meal?
-    @ObservedObject var api: APIService   // so that we can call `create(...)`
+    @ObservedObject var api: APIService
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    colors: [Color(.systemBackground), Color(.systemGray6)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
                 if let meal = meal {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(spacing: 24) {
+                            // Header with sparkles icon
+                            VStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(LinearGradient(
+                                            colors: [.yellow.opacity(0.8), .orange.opacity(0.6)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ))
+                                        .frame(width: 60, height: 60)
+                                    
+                                    Image(systemName: "sparkles")
+                                        .font(.title)
+                                        .foregroundStyle(.white)
+                                }
+                                
+                                Text("Random Meal Discovery")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 20)
+                            
+                            // Meal name
                             Text(meal.name)
-                                .font(.largeTitle)
-                                .bold()
-                                .padding(.bottom, 8)
+                                .font(.largeTitle.bold())
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
 
+                            // Meal image
                             AsyncImage(url: meal.thumbnail) { image in
                                 image
                                     .resizable()
-                                    .scaledToFit()
-                                    .cornerRadius(12)
-                                    .shadow(radius: 5)
-                                    .padding(.bottom, 12)
+                                    .scaledToFill()
+                                    .frame(height: 250)
+                                    .clipped()
+                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                             } placeholder: {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 20)
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(.regularMaterial)
+                                    .frame(height: 250)
+                                    .overlay {
+                                        VStack(spacing: 12) {
+                                            ProgressView()
+                                                .scaleEffect(1.2)
+                                            Text("Loading image...")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
                             }
+                            .padding(.horizontal, 20)
 
-                            Text("Instructions")
-                                .font(.title2)
-                                .bold()
-                                .padding(.bottom, 4)
-
-                            Text(meal.instructions)
-                                .font(.body)
+                            // Instructions card
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Image(systemName: "list.bullet.clipboard.fill")
+                                        .foregroundStyle(.green)
+                                        .font(.title2)
+                                    Text("Instructions")
+                                        .font(.title2.bold())
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+                                
+                                Text(meal.instructions)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+                                    .lineSpacing(4)
+                            }
+                            .padding(20)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.regularMaterial)
+                                    .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 2)
+                            )
+                            .padding(.horizontal, 20)
+                            
+                            Spacer(minLength: 100)
                         }
-                        .padding()
                     }
                 } else {
-                    // While `randomMeal` is nil or still loading, show a spinner
-                    VStack {
-                        ProgressView("Fetching Meal…")
+                    // Loading state
+                    VStack(spacing: 20) {
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(
+                                    colors: [.yellow.opacity(0.8), .orange.opacity(0.6)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                .frame(width: 80, height: 80)
+                            
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 32))
+                                .foregroundStyle(.white)
+                        }
+                        
+                        VStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("Discovering a random meal...")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("This might take a moment")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Random Meal")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // “Close” button on the leading side
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") {
                         dismiss()
                     }
+                    .foregroundStyle(.secondary)
                 }
 
-                // “Add” button on the trailing side
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button("Add to Recipes") {
                         if let m = meal {
                             let newRecipe = Recipe(name: m.name, description: m.instructions)
                             Task {
@@ -75,8 +160,8 @@ struct MealDetailView: View {
                         }
                         dismiss()
                     }
-                    // Disabled until a fresh meal arrives
                     .disabled(meal == nil)
+                    .fontWeight(.semibold)
                 }
             }
         }
