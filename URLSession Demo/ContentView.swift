@@ -12,11 +12,11 @@ struct ContentView: View {
     @StateObject private var api = APIService()
     @State private var showingEditor = false
     @State private var editTarget: Recipe?
-    @State private var showDetail: Bool = false
+    @State private var showDetail = false
     @State private var selectedRecipe: Recipe?
 
-    @State private var searchText: String = ""
-    @State private var sortAscending: Bool = true
+    @State private var searchText = ""
+    @State private var sortAscending = true
 
     /// Applies search & sorting to `api.recipes`
     private var filteredAndSorted: [Recipe] {
@@ -35,6 +35,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // ──────────────────────────────────────────────────────────────
                 // Search Bar
                 HStack {
                     Image(systemName: "magnifyingglass")
@@ -44,6 +45,7 @@ struct ContentView: View {
                 }
                 .padding([.horizontal, .top])
 
+                // ──────────────────────────────────────────────────────────────
                 // List of Recipes
                 List {
                     ForEach(filteredAndSorted) { recipe in
@@ -63,7 +65,9 @@ struct ContentView: View {
                         }
                     }
                     .onDelete { idx in
-                        Task { try? await api.delete(at: idx) }
+                        Task {
+                            await api.delete(at: idx)
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -81,7 +85,9 @@ struct ContentView: View {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     // Import Samples (random unique ones)
                     Button {
-                        Task { await api.importRandomSamples(count: 3) }
+                        Task {
+                            await api.importRandomSamples(count: 3)
+                        }
                     } label: {
                         HStack {
                             Image(systemName: "square.and.arrow.down.on.square")
@@ -121,15 +127,12 @@ struct ContentView: View {
                     }
                 }
             }
-            .background(
-                // Hidden NavigationLink to push a DetailView
-                NavigationLink(
-                    destination: DetailView(recipe: selectedRecipe),
-                    isActive: $showDetail,
-                    label: { EmptyView() }
-                )
-                .hidden()
-            )
+            // ──────────────────────────────────────────────────────────────
+            // Replace deprecated NavigationLink with navigationDestination:
+            .navigationDestination(isPresented: $showDetail) {
+                DetailView(recipe: selectedRecipe)
+            }
+            // ──────────────────────────────────────────────────────────────
             .task {
                 // On first appear, load the vault
                 await api.fetchAll()
@@ -138,7 +141,9 @@ struct ContentView: View {
                 get: { api.errorMessage != nil },
                 set: { if !$0 { api.errorMessage = nil } }
             )) {
-                Button("OK", role: .cancel) { api.errorMessage = nil }
+                Button("OK", role: .cancel) {
+                    api.errorMessage = nil
+                }
             } message: {
                 Text(api.errorMessage ?? "")
             }

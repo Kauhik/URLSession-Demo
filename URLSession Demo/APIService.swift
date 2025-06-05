@@ -97,9 +97,9 @@ final class APIService: ObservableObject {
     // MARK: - IMPORT RANDOM UNIQUE SAMPLES
     /// 1) GET /recipes?limit=0 → to learn `total`.
     /// 2) Pick a random `skip` so that we can request `count` items.
-    /// 3) GET /recipes?limit=count&skip=randomSkip → which returns “{ recipes: [Sample], total, skip, limit }”.
+    /// 3) GET /recipes?limit=count&skip=randomSkip → returns “{ recipes: [Sample], total, skip, limit }”.
     /// 4) Filter out any sample whose **name** is already in `self.recipes`.
-    /// 5) For each remaining Sample, POST it into your vault (→ create).
+    /// 5) For each remaining Sample, POST it into your vault via `create(...)`.
     func importRandomSamples(count: Int = 3) async {
         isLoading = true
         defer { isLoading = false }
@@ -122,6 +122,8 @@ final class APIService: ObservableObject {
         }
 
         do {
+            // ─────────────────────────────────────────────────────────────────────────
+            // Step A: Get the TOTAL count so we know how to pick a random skip.
             // GET https://dummyjson.com/recipes?limit=0
             var initialComponents = URLComponents(string: importBase.absoluteString)!
             initialComponents.queryItems = [ URLQueryItem(name: "limit", value: "0") ]
@@ -134,9 +136,13 @@ final class APIService: ObservableObject {
                 return
             }
 
+            // ─────────────────────────────────────────────────────────────────────────
+            // Step B: Pick a random `skip` so that the next request returns `count` distinct items.
             let maxSkip = max(0, totalCount - count)
             let randomSkip = Int.random(in: 0...maxSkip)
 
+            // ─────────────────────────────────────────────────────────────────────────
+            // Step C: Actually fetch “count” items starting at `randomSkip`.
             // GET https://dummyjson.com/recipes?limit=count&skip=randomSkip
             var fetchComponents = URLComponents(string: importBase.absoluteString)!
             fetchComponents.queryItems = [
@@ -146,18 +152,21 @@ final class APIService: ObservableObject {
             let (fetchedData, _) = try await URLSession.shared.data(from: fetchComponents.url!)
             let wrapper = try JSONDecoder().decode(Wrapper.self, from: fetchedData)
 
+            // ─────────────────────────────────────────────────────────────────────────
+            // Step D: Filter out any sample whose name (case-insensitive) already exists locally.
             let existingNames = Set(recipes.map { $0.name.lowercased() })
             let uniqueSamples = wrapper.recipes.filter { !existingNames.contains($0.name.lowercased()) }
 
+            // If none remain, just bail out:
             guard !uniqueSamples.isEmpty else {
-                // Optionally, you could set an errorMessage or simply return.
                 return
             }
 
-            // each returned Recipe will automatically append into `recipes`.
+            // ─────────────────────────────────────────────────────────────────────────
+            // Step E: POST each unique Sample into YOUR vault:
             var seenNames = existingNames
             for sample in uniqueSamples {
-                // In case DummyJSON returns two samples with the same name, we still guard once more:
+                // In case DummyJSON returns two samples with exactly the same name:
                 let lower = sample.name.lowercased()
                 guard !seenNames.contains(lower) else { continue }
                 seenNames.insert(lower)
@@ -167,7 +176,7 @@ final class APIService: ObservableObject {
                 let newRecipe = Recipe(name: sample.name, description: descriptionText)
 
                 // Await the POST → vault and local append:
-                try await create(newRecipe)
+                await create(newRecipe)
             }
 
         } catch {
