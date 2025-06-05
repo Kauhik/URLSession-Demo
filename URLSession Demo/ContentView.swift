@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
     @StateObject private var api = APIService()
@@ -102,12 +101,9 @@ struct ContentView: View {
                 }
             }
             // ── SHEET #2: Random Meal Detail ──────────────────────────────
+            // Pass `api` into MealDetailView so it can call `create(...)`.
             .sheet(isPresented: $showMeal) {
-                MealDetailView(meal: api.randomMeal)
-                    .onDisappear {
-                        api.randomMeal = nil
-                        showMeal = false
-                    }
+                MealDetailView(meal: api.randomMeal, api: api)
             }
             // ── NAVIGATION TO DETAIL ─────────────────────────────────────
             .navigationDestination(isPresented: $showDetail) {
@@ -187,7 +183,15 @@ struct ContentView: View {
     private var randomMealButton: some View {
         Button {
             Task {
+                // ─── CLEAR OUT OLD MEAL ───────────────────────────────────
+                // This ensures `randomMeal` is nil while we fetch the next one,
+                // so the sheet’s “Add” is disabled until a brand‐new meal arrives.
+                api.randomMeal = nil
+
+                // Fetch the new random meal…
                 await api.fetchRandomMeal()
+
+                // Then show the sheet.
                 showMeal = true
             }
         } label: {
@@ -208,7 +212,7 @@ struct ContentView: View {
         }
     }
 
-    /// “＋” button to add a new recipe
+    /// “＋” button to add a new recipe manually
     private var addRecipeButton: some View {
         Button {
             editTarget = nil
@@ -224,149 +228,6 @@ struct ContentView: View {
             sortAscending.toggle()
         } label: {
             Image(systemName: "arrow.up.arrow.down")
-        }
-    }
-}
-
-
-// MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-// Detail View (no changes needed)
-
-fileprivate struct DetailView: View {
-    let recipe: Recipe?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if let recipe = recipe {
-                Text(recipe.name)
-                    .font(.largeTitle)
-                    .bold()
-                    .padding(.bottom, 8)
-
-                ScrollView {
-                    Text(recipe.description)
-                        .font(.body)
-                        .padding(.horizontal)
-                }
-            } else {
-                Text("No recipe selected.")
-                    .italic()
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .navigationTitle("Detail")
-    }
-}
-
-
-// MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-// EditorView (no changes needed)
-
-fileprivate struct EditorView: View {
-    enum Action { case save(Recipe), cancel }
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var name: String
-    @State private var desc: String
-    let id: String?
-    let onComplete: (Action) -> Void
-
-    init(recipe: Recipe?, onComplete: @escaping (Action) -> Void) {
-        _name = State(initialValue: recipe?.name ?? "")
-        _desc  = State(initialValue: recipe?.description ?? "")
-        id           = recipe?.id
-        self.onComplete = onComplete
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Title") {
-                    TextField("Recipe name", text: $name)
-                }
-                Section("Instructions") {
-                    TextEditor(text: $desc)
-                        .frame(minHeight: 200)
-                }
-            }
-            .navigationTitle(id == nil ? "New Recipe" : "Edit Recipe")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                        onComplete(.cancel)
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        dismiss()
-                        onComplete(.save(.init(id: id, name: name, description: desc)))
-                    }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-        }
-    }
-}
-
-
-// MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-// MealDetailView (no changes needed)
-
-struct MealDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-    let meal: Meal?
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                if let meal = meal {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(meal.name)
-                                .font(.largeTitle)
-                                .bold()
-                                .padding(.bottom, 8)
-
-                            AsyncImage(url: meal.thumbnail) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                                    .cornerRadius(12)
-                                    .shadow(radius: 5)
-                                    .padding(.bottom, 12)
-                            } placeholder: {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 20)
-                            }
-
-                            Text("Instructions")
-                                .font(.title2)
-                                .bold()
-                                .padding(.bottom, 4)
-
-                            Text(meal.instructions)
-                                .font(.body)
-                        }
-                        .padding()
-                    }
-                } else {
-                    VStack {
-                        ProgressView("Fetching Meal…")
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .navigationTitle("Random Meal")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        dismiss()
-                    }
-                }
-            }
         }
     }
 }

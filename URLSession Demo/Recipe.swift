@@ -8,7 +8,7 @@
 import Foundation
 
 struct Recipe: Identifiable, Hashable, Codable {
-    let id: String?                     // server-generated
+    let id: String?                     // server‐generated (or nil if local‐only)
     var name: String
     var description: String
 
@@ -23,17 +23,17 @@ struct Recipe: Identifiable, Hashable, Codable {
     }
 
     init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id   = try c.decodeIfPresent(String.self, forKey: .id)
-        name = try c.decode(String.self, forKey: .name)
-        let data = try c.decodeIfPresent([String:String].self, forKey: .data)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id   = try container.decodeIfPresent(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        let data = try container.decodeIfPresent([String:String].self, forKey: .data)
         description = data?["description"] ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encodeIfPresent(id, forKey: .id)
-        try c.encode(name, forKey: .name)
-        try c.encode(["description": description], forKey: .data)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(["description": description], forKey: .data)
     }
 }

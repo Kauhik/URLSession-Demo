@@ -81,8 +81,8 @@ final class APIService: ObservableObject {
             let url = URL(string: id, relativeTo: restBase)
         else {
             // If there's no remote ID, just replace locally
-            if let idx = recipes.firstIndex(where: { $0.id == recipe.id }) {
-                recipes[idx] = recipe
+            if let index = recipes.firstIndex(where: { $0.id == recipe.id }) {
+                recipes[index] = recipe
                 saveLocalRecipes()
             }
             return
@@ -99,8 +99,8 @@ final class APIService: ObservableObject {
             recipes.replaceAll(where: { $0.id == updated.id }, with: updated)
         } catch {
             // If remote update fails, still update locally
-            if let idx = recipes.firstIndex(where: { $0.id == recipe.id }) {
-                recipes[idx] = recipe
+            if let index = recipes.firstIndex(where: { $0.id == recipe.id }) {
+                recipes[index] = recipe
             }
         }
         saveLocalRecipes()
@@ -234,6 +234,7 @@ struct Meal: Identifiable, Decodable {
     }
 }
 
+// MARK: - Array Helper
 private extension Array where Element: Identifiable & Hashable {
     mutating func replaceAll(where predicate: (Element) -> Bool, with element: Element) {
         if let idx = firstIndex(where: predicate) {
