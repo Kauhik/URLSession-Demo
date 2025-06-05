@@ -9,53 +9,100 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @StateObject private var api = APIService()
+    @State private var showingEditor = false
+    @State private var editTarget: Recipe?
 
     var body: some View {
-        NavigationSplitView {
+        NavigationStack {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
+                ForEach(api.recipes) { recipe in
+                    Button {
+                        editTarget = recipe
+                        showingEditor = true
                     } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+                        VStack(alignment: .leading) {
+                            Text(recipe.name).font(.headline)
+                            Text(recipe.description).lineLimit(1)
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        }
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .onDelete { idx in
+                    Task { try? await api.delete(at: idx) }
+                }
             }
+            .navigationTitle("Recipe Vault")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button("Import Sample Recipes") {
+                        Task { try? await api.importSamples() }
+                    }
+                    Button("plus") {
+                        editTarget = nil       // create mode
+                        showingEditor = true
                     }
                 }
             }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            .task {                // initial load
+                try? await api.fetchAll()
+            }
+            .sheet(isPresented: $showingEditor) {
+                Editor(recipe: editTarget) { result in
+                    switch result {
+                    case .save(let new):
+                        Task {
+                            if let _ = new.id {
+                                try? await api.update(new)
+                            } else {
+                                try? await api.create(new)
+                            }
+                        }
+                    case .cancel: break
+                    }
+                }
             }
         }
     }
 }
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+// MARK: - Simple editor sheet
+private struct Editor: View {
+    enum Action { case save(Recipe), cancel }
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String
+    @State private var desc: String
+    let id: String?
+    let onComplete: (Action) -> Void
+
+    init(recipe: Recipe?, onComplete: @escaping (Action)->Void) {
+        _name = State(initialValue: recipe?.name ?? "")
+        _desc = State(initialValue: recipe?.description ?? "")
+        id = recipe?.id
+        self.onComplete = onComplete
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Title", text: $name)
+                TextEditor(text: $desc).frame(minHeight: 120)
+            }
+            .navigationTitle(id == nil ? "New Recipe" : "Edit Recipe")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss(); onComplete(.cancel) }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        dismiss()
+                        onComplete(.save(.init(id: id, name: name, description: desc)))
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+    }
 }
