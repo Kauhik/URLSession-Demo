@@ -10,7 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var api = APIService()
 
-    // Sheet & navigation state
+    // MARK: – State for sheets & navigation
     @State private var showingEditor = false
     @State private var editTarget: Recipe? = nil
 
@@ -19,7 +19,7 @@ struct ContentView: View {
 
     @State private var showMeal = false
 
-    // Search & sort state
+    // MARK: – Search & Sort
     @State private var searchText = ""
     @State private var sortAscending = true
 
@@ -86,22 +86,22 @@ struct ContentView: View {
             .sheet(isPresented: $showingEditor) {
                 EditorView(recipe: editTarget) { result in
                     switch result {
-                    case .save(let newRecipe):
-                        Task {
-                            if let _ = newRecipe.id {
-                                await api.update(newRecipe)
-                            } else {
-                                await api.create(newRecipe)
+                        case .save(let newRecipe):
+                            Task {
+                                if let _ = newRecipe.id {
+                                    await api.update(newRecipe)
+                                } else {
+                                    await api.create(newRecipe)
+                                }
                             }
-                        }
-                    case .cancel:
-                        break
+                        case .cancel:
+                            break
                     }
+                    // Reset after dismiss
                     showingEditor = false
                 }
             }
             // ── SHEET #2: Random Meal Detail ──────────────────────────────
-            // Pass `api` into MealDetailView so it can call `create(...)`.
             .sheet(isPresented: $showMeal) {
                 MealDetailView(meal: api.randomMeal, api: api)
             }
@@ -125,9 +125,9 @@ struct ContentView: View {
     }
 
     // MARK: ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
-    // Helpers & subviews (to keep `body` concise)
+    // MARK: – Helpers & Subviews for “body”
 
-    /// Binding that shows true when `api.errorMessage` is non‐nil
+    /// Binding that becomes true when `api.errorMessage` is non‐nil
     private var showErrorAlert: Binding<Bool> {
         Binding<Bool>(
             get: { api.errorMessage != nil },
@@ -139,17 +139,29 @@ struct ContentView: View {
         )
     }
 
-    /// The List of recipes, with delete + navigation logic
+    /// The List of recipes, with Delete + Edit (swipeActions) + navigation
     private var recipesList: some View {
         let recipesToShow = filteredAndSorted
 
         return List {
             ForEach(recipesToShow) { recipe in
+                // Tapping on a row → go to DetailView
                 Button {
                     selectedRecipe = recipe
                     showDetail = true
                 } label: {
                     recipeRow(recipe)
+                }
+                // Swipe actions: Delete is already handled below; we now add Edit
+                .swipeActions(edge: .leading) {
+                    Button {
+                        // Prepare to edit this recipe
+                        editTarget = recipe
+                        showingEditor = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .tint(.blue)
                 }
             }
             .onDelete { indexSet in
@@ -184,11 +196,9 @@ struct ContentView: View {
         Button {
             Task {
                 // ─── CLEAR OUT OLD MEAL ───────────────────────────────────
-                // This ensures `randomMeal` is nil while we fetch the next one,
-                // so the sheet’s “Add” is disabled until a brand‐new meal arrives.
                 api.randomMeal = nil
 
-                // Fetch the new random meal…
+                // Fetch a new random meal…
                 await api.fetchRandomMeal()
 
                 // Then show the sheet.
@@ -215,6 +225,7 @@ struct ContentView: View {
     /// “＋” button to add a new recipe manually
     private var addRecipeButton: some View {
         Button {
+            // Clearing editTarget = nil means “Create New”
             editTarget = nil
             showingEditor = true
         } label: {
