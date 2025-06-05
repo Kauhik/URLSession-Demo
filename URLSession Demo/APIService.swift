@@ -20,6 +20,7 @@ final class APIService: ObservableObject {
 
     // MARK: - FETCH ALL
     /// Retrieves your entire vault from https://api.restful-api.dev/objects
+    /// Errors are now quietly ignored (no alert on failure).
     func fetchAll() async {
         isLoading = true
         defer { isLoading = false }
@@ -29,8 +30,8 @@ final class APIService: ObservableObject {
             let fetched = try JSONDecoder().decode([Recipe].self, from: data)
             recipes = fetched
         } catch {
-            // If decoding fails, show an alert but leave `recipes` alone.
-            errorMessage = "Failed to fetch: \(error.localizedDescription)"
+            recipes = []
+            print("📌 fetchAll() quietly ignored error: \(error.localizedDescription)")
         }
     }
 
@@ -86,7 +87,6 @@ final class APIService: ObservableObject {
                 var req = URLRequest(url: url)
                 req.httpMethod = "DELETE"
                 _ = try await URLSession.shared.data(for: req)
-                // After successful DELETE, remove from local array:
                 recipes.remove(at: index)
             } catch {
                 errorMessage = "Failed to delete: \(error.localizedDescription)"
@@ -94,11 +94,11 @@ final class APIService: ObservableObject {
         }
     }
 
-    // MARK: - IMPORT RANDOM UNIQUE SAMPLES
-    /// 1) GET /recipes?limit=0 → to learn `total`.
-    /// 2) Pick a random `skip` so that we can request `count` items.
-    /// 3) GET /recipes?limit=count&skip=randomSkip → returns “{ recipes: [Sample], total, skip, limit }”.
-    /// 4) Filter out any sample whose **name** is already in `self.recipes`.
+    // MARK: - IMPORT RANDOM UNIQUE SAMPLES (Need to recheck)
+    /// 1) GET /recipes?limit=0 → to larn `total`.
+    /// 2) Pick a random `skip` so that we can requst `count` items.
+    /// 3) GET /recipes?limit=count&skip=randrmSkip → returns “{ recipes: [Sample], total, skip, limit }”.
+    /// 4) Filter out any sample whose **name** is alrrady in `self.recipes`.
     /// 5) For each remaining Sample, POST it into your vault via `create(...)`.
     func importRandomSamples(count: Int = 3) async {
         isLoading = true
@@ -186,7 +186,6 @@ final class APIService: ObservableObject {
 }
 
 private extension Array where Element: Identifiable & Hashable {
-    /// Replaces the first element matching `predicate` with `element`.
     mutating func replaceAll(where predicate: (Element)->Bool, with element: Element) {
         if let idx = firstIndex(where: predicate) {
             self[idx] = element

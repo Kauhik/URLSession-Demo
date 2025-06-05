@@ -128,13 +128,13 @@ struct ContentView: View {
                 }
             }
             // ──────────────────────────────────────────────────────────────
-            // Replace deprecated NavigationLink with navigationDestination:
+            // Use the new SwiftUI 4.0 modifier instead of deprecated NavigationLink(...)
             .navigationDestination(isPresented: $showDetail) {
                 DetailView(recipe: selectedRecipe)
             }
             // ──────────────────────────────────────────────────────────────
             .task {
-                // On first appear, load the vault
+                // On first appear, load the vault (any fetch‐errors are now silent)
                 await api.fetchAll()
             }
             .alert("Error", isPresented: Binding<Bool>(
