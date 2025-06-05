@@ -121,6 +121,7 @@ struct ContentView: View {
                         .padding(8)
 
                         Button {
+                            // "Add New Recipe" (editTarget = nil triggers a blank EditorView)
                             editTarget = nil
                             showingEditor = true
                         } label: {
@@ -132,33 +133,39 @@ struct ContentView: View {
                     }
                 }
             }
-            // Sheets and navigation
+            // MARK: – Sheet for New/Edit Recipe
             .sheet(isPresented: $showingEditor) {
                 EditorView(recipe: editTarget) { result in
                     switch result {
-                        case .save(let newRecipe):
-                            Task {
-                                if let _ = newRecipe.id {
-                                    await api.update(newRecipe)
-                                } else {
-                                    await api.create(newRecipe)
-                                }
+                    case .save(let newRecipe):
+                        Task {
+                            if let _ = newRecipe.id {
+                                await api.update(newRecipe)
+                            } else {
+                                await api.create(newRecipe)
                             }
-                        case .cancel:
-                            break
+                        }
+                    case .cancel:
+                        break
                     }
                     showingEditor = false
                 }
+                // ← This line forces EditorView to be recreated fresh each time:
+                .id(UUID())
             }
+            // MARK: – Sheet for Random Meal
             .sheet(isPresented: $showMeal) {
                 MealDetailView(meal: api.randomMeal, api: api)
             }
+            // MARK: – NavigationLink to Detail
             .navigationDestination(isPresented: $showDetail) {
                 DetailView(recipe: selectedRecipe)
             }
+            // MARK: – Initial Fetch
             .task {
                 await api.fetchAll()
             }
+            // MARK: – Error Alert
             .alert("Error", isPresented: showErrorAlert) {
                 Button("OK", role: .cancel) {
                     api.errorMessage = nil
@@ -166,6 +173,7 @@ struct ContentView: View {
             } message: {
                 Text(api.errorMessage ?? "")
             }
+            // MARK: – Pull to Refresh
             .refreshable {
                 await api.fetchAll()
             }
