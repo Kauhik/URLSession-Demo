@@ -13,10 +13,13 @@ final class APIService: ObservableObject {
     @Published private(set) var recipes: [Recipe] = []
     @Published private(set) var isLoading: Bool = false
     @Published var errorMessage: String?
+    
+    @Published var randomMeal: Meal?
 
     // MARK: - Endpoints
     private let restBase   = URL(string: "https://api.restful-api.dev/objects")!   // full CRUD vault
     private let importBase = URL(string: "https://dummyjson.com/recipes")!        // read-only: has total/skip/limit
+    private let randomMealURL = URL(string: "https://www.themealdb.com/api/json/v1/1/random.php")!
 
     // MARK: - FETCH ALL
     /// Retrieves your entire vault from https://api.restful-api.dev/objects
@@ -94,11 +97,11 @@ final class APIService: ObservableObject {
         }
     }
 
-    // MARK: - IMPORT RANDOM UNIQUE SAMPLES (Need to recheck)
-    /// 1) GET /recipes?limit=0 → to larn `total`.
-    /// 2) Pick a random `skip` so that we can requst `count` items.
-    /// 3) GET /recipes?limit=count&skip=randrmSkip → returns “{ recipes: [Sample], total, skip, limit }”.
-    /// 4) Filter out any sample whose **name** is alrrady in `self.recipes`.
+    // MARK: - IMPORT RANDOM UNIQUE SAMPLES
+    /// 1) GET /recipes?limit=0 → to learn `total`.
+    /// 2) Pick a random `skip` so that we can request `count` items.
+    /// 3) GET /recipes?limit=count&skip=randomSkip → returns “{ recipes: [Sample], total, skip, limit }”.
+    /// 4) Filter out any sample whose **name** is already in `self.recipes`.
     /// 5) For each remaining Sample, POST it into your vault via `create(...)`.
     func importRandomSamples(count: Int = 3) async {
         isLoading = true
@@ -182,6 +185,44 @@ final class APIService: ObservableObject {
         } catch {
             errorMessage = "Import failed: \(error.localizedDescription)"
         }
+    }
+    
+    // MARK: - FETCH RANDOM MEAL
+    /// Retrieves a random meal from TheMealDB API and publishes it to `randomMeal`.
+    func fetchRandomMeal() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: randomMealURL)
+            let decoded = try JSONDecoder().decode(MealsResponse.self, from: data)
+            if let meal = decoded.meals.first {
+                randomMeal = meal
+            } else {
+                errorMessage = "No meal found."
+            }
+        } catch {
+            errorMessage = "Failed to fetch random meal: \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - Model for Random Meal
+struct MealsResponse: Decodable {
+    let meals: [Meal]
+}
+
+struct Meal: Identifiable, Decodable {
+    let id: String
+    let name: String
+    let instructions: String
+    let thumbnail: URL
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "idMeal"
+        case name = "strMeal"
+        case instructions = "strInstructions"
+        case thumbnail = "strMealThumb"
     }
 }
 
