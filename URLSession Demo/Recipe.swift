@@ -7,8 +7,6 @@
 
 import Foundation
 
-/// One recipe as stored by https://api.restful-api.dev
-
 struct Recipe: Identifiable, Hashable, Codable {
     let id: String?                     // server-generated
     var name: String
